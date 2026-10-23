@@ -1,10 +1,10 @@
 /**
  * Comunicación con el servidor (funciones de Vercel + Vercel Blob).
- * Con `?demo` en la dirección se usa un servidor de demostración que guarda todo
- * en este navegador, para probar la web sin publicarla.
+ * Con `?demo` en la dirección (o abriendo la web en esta PC) se usa un servidor de demostración
+ * que guarda todo en este navegador, para probar la web sin publicarla.
  */
 import { API_URL } from './config.js';
-import { buscarDesafio } from './desafios.js';
+import { desafiosDelEvento } from './desafios.js';
 import * as idb from './idb.js';
 
 export class ErrorApi extends Error {}
@@ -29,14 +29,6 @@ function interpretar(texto) {
   }
   if (!datos.ok) throw new ErrorApi(datos.error || 'Hubo un problema. Probá de nuevo.');
   return datos;
-}
-
-// El servidor guarda solo el id del desafío en el nombre; el nombre visible sale del catálogo.
-function conNombres(pagina) {
-  return {
-    ...pagina,
-    fotos: pagina.fotos.map(f => ({ ...f, desafioNombre: (buscarDesafio(f.desafioId) || { nombre: f.desafioId }).nombre })),
-  };
 }
 
 /* ---------- Servidor real ---------- */
@@ -68,21 +60,26 @@ function crearApiReal() {
       xhr.send(JSON.stringify(cuerpo));
     });
   }
+  const admin = (clave, cuerpo) => enviar('admin', cuerpo, { clave });
 
   return {
     modoDemo: false,
     evento: async e => (await obtener('evento', { e })).evento,
-    galeria: async (e, desde = 0) => conNombres(await obtener('galeria', { e, desde })),
+    galeria: (e, desde = 0) => obtener('galeria', { e, desde }),
     async subir({ evento, uploadId, sesion, desafio, blob, mini }, alProgresar) {
       const [imagen, miniatura] = await Promise.all([blobABase64(blob), blobABase64(mini || blob)]);
       return enviar('subir', {
         e: evento, uploadId, sesion, desafioId: desafio.id, desafioNombre: desafio.nombre, imagen, miniatura,
       }, { alProgresar });
     },
-    eventos: async clave => (await enviar('admin', { accion: 'eventos' }, { clave })).eventos,
-    guardarEvento: async (clave, evento) => (await enviar('admin', { accion: 'guardarEvento', evento }, { clave })).evento,
-    listar: async (e, clave, estado, desde = 0) => conNombres(await enviar('admin', { accion: 'listar', e, estado, desde }, { clave })),
-    moderar: (e, clave, id, estado) => enviar('admin', { accion: 'moderar', e, id, estado }, { clave }),
+    eventos: async clave => (await admin(clave, { accion: 'eventos' })).eventos,
+    guardarEvento: async (clave, evento) => (await admin(clave, { accion: 'guardarEvento', evento })).evento,
+    borrarEvento: (clave, e) => admin(clave, { accion: 'borrarEvento', e, confirmar: e }),
+    listar: (e, clave, estado, desde = 0) => admin(clave, { accion: 'listar', e, estado, desde }),
+    moderar: (e, clave, id, estado) => admin(clave, { accion: 'moderar', e, id, estado }),
+    desafios: async clave => (await admin(clave, { accion: 'desafios' })).desafios,
+    guardarDesafio: async (clave, desafio) => (await admin(clave, { accion: 'guardarDesafio', desafio })).desafios,
+    borrarDesafio: async (clave, id) => (await admin(clave, { accion: 'borrarDesafio', id })).desafios,
     urlFoto: (foto, ancho) => (ancho <= 600 ? foto.mini : foto.url),
   };
 }
@@ -103,6 +100,7 @@ const EVENTOS_DEMO = {
 };
 const CLAVE_DEMO = 'demo';
 const CLAVE_EVENTOS_DEMO = 'cumple-demo:eventos';
+const CLAVE_DESAFIOS_DEMO = 'cumple-demo:desafios';
 
 function crearApiDemo() {
   const espera = ms => new Promise(r => setTimeout(r, ms));
@@ -110,24 +108,41 @@ function crearApiDemo() {
   // `?fallar=1` hace fallar la primera subida, para probar el reintento.
   let fallasPendientes = new URLSearchParams(location.search).get('fallar') === '1' ? 1 : 0;
 
+  const leerLocal = (clave, porDefecto) => {
+    try { return JSON.parse(localStorage.getItem(clave)) ?? porDefecto; } catch { return porDefecto; }
+  };
+  const guardarLocal = (clave, valor) => localStorage.setItem(clave, JSON.stringify(valor));
+
+  // Los eventos guardados pisan a los de ejemplo; `null` marca uno borrado.
   function eventosDemo() {
-    try {
-      return { ...EVENTOS_DEMO, ...JSON.parse(localStorage.getItem(CLAVE_EVENTOS_DEMO) || '{}') };
-    } catch {
-      return { ...EVENTOS_DEMO };
-    }
+    const todos = { ...EVENTOS_DEMO, ...leerLocal(CLAVE_EVENTOS_DEMO, {}) };
+    return Object.fromEntries(Object.entries(todos).filter(([, ev]) => ev));
   }
+  async function catalogo() {
+    const guardado = leerLocal(CLAVE_DESAFIOS_DEMO, null);
+    if (guardado) return guardado;
+    return (await fetch(new URL('desafios-base.json', import.meta.url))).json();
+  }
+  const visibles = lista => lista.filter(d => d.activo !== false);
+  const slug = (texto, defecto) => String(texto || defecto).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || defecto;
+
   function urlDe(id, blob) {
     if (!urls.has(id) && blob) urls.set(id, URL.createObjectURL(blob));
     return urls.get(id) || '';
   }
   async function pagina(e, estado, desde) {
+    const lista = await catalogo();
+    const nombre = id => (id === 'libre' ? 'Foto libre' : (lista.find(d => d.id === id) || { nombre: id }).nombre);
     const fotos = (await idb.leerTodo('demo'))
       .filter(f => f.evento === e && f.estado === estado)
       .sort((a, b) => b.fecha.localeCompare(a.fecha))
-      .map(f => ({ id: f.id, desafioId: f.desafioId, fecha: f.fecha, url: urlDe(f.id, f.blob), mini: urlDe(`${f.id}-mini`, f.mini || f.blob) }));
+      .map(f => ({
+        id: f.id, desafioId: f.desafioId, desafioNombre: nombre(f.desafioId), fecha: f.fecha,
+        url: urlDe(f.id, f.blob), mini: urlDe(`${f.id}-mini`, f.mini || f.blob),
+      }));
     const parte = fotos.slice(desde, desde + 60);
-    return conNombres({ fotos: parte, total: fotos.length, siguiente: desde + parte.length < fotos.length ? desde + parte.length : null });
+    return { fotos: parte, total: fotos.length, siguiente: desde + parte.length < fotos.length ? desde + parte.length : null };
   }
   function verificar(clave) {
     if (clave !== CLAVE_DEMO) throw new ErrorApi('Clave incorrecta. En la demostración la clave es "demo".');
@@ -139,7 +154,7 @@ function crearApiDemo() {
       await espera(250);
       const evento = eventosDemo()[e];
       if (!evento) throw new ErrorApi('No encontramos este cumpleaños.');
-      return evento;
+      return { ...evento, desafios: desafiosDelEvento(await catalogo(), evento.desafios) };
     },
     galeria: async (e, desde = 0) => { await espera(200); return pagina(e, 'publicada', desde); },
     async subir({ evento, uploadId, sesion, desafio, blob, mini }, alProgresar) {
@@ -157,12 +172,18 @@ function crearApiDemo() {
     async eventos(clave) { verificar(clave); return Object.values(eventosDemo()); },
     async guardarEvento(clave, datos) {
       verificar(clave);
-      const id = datos.id || `${(datos.titulo || 'cumple').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Math.random().toString(16).slice(2, 8)}`;
+      const id = datos.id || `${slug(datos.titulo, 'cumple')}-${Math.random().toString(16).slice(2, 8)}`;
       const evento = { ...datos, id, activo: datos.activo !== false };
-      const propios = JSON.parse(localStorage.getItem(CLAVE_EVENTOS_DEMO) || '{}');
-      propios[id] = evento;
-      localStorage.setItem(CLAVE_EVENTOS_DEMO, JSON.stringify(propios));
+      guardarLocal(CLAVE_EVENTOS_DEMO, { ...leerLocal(CLAVE_EVENTOS_DEMO, {}), [id]: evento });
       return evento;
+    },
+    async borrarEvento(clave, e) {
+      verificar(clave);
+      if (!eventosDemo()[e]) throw new ErrorApi('No encontramos este cumpleaños.');
+      const fotos = (await idb.leerTodo('demo')).filter(f => f.evento === e);
+      for (const f of fotos) await idb.borrar('demo', f.id);
+      guardarLocal(CLAVE_EVENTOS_DEMO, { ...leerLocal(CLAVE_EVENTOS_DEMO, {}), [e]: null });
+      return { borrados: fotos.length + 1 };
     },
     async listar(e, clave, estado, desde = 0) { verificar(clave); return pagina(e, estado, desde); },
     async moderar(e, clave, id, estado) {
@@ -171,6 +192,31 @@ function crearApiDemo() {
       if (!foto || foto.evento !== e) throw new ErrorApi('No encontramos esa foto en este evento.');
       await idb.guardar('demo', id, { ...foto, estado });
       return { id, estado };
+    },
+    async desafios(clave) { verificar(clave); return visibles(await catalogo()); },
+    async guardarDesafio(clave, datos) {
+      verificar(clave);
+      const lista = await catalogo();
+      if (!String(datos.nombre || '').trim()) throw new ErrorApi('El desafío necesita un nombre.');
+      if (!String(datos.instrucciones || '').trim()) throw new ErrorApi('Escribí las instrucciones del desafío.');
+      let id = datos.id;
+      if (!id) {
+        const base = slug(datos.nombre, 'desafio');
+        id = base;
+        for (let n = 2; lista.some(d => d.id === id) || id === 'libre'; n++) id = `${base}-${n}`;
+      }
+      const desafio = { ...datos, id, emoji: datos.emoji || '🎯' };
+      const nueva = lista.some(d => d.id === id) ? lista.map(d => (d.id === id ? desafio : d)) : [...lista, desafio];
+      guardarLocal(CLAVE_DESAFIOS_DEMO, nueva);
+      return visibles(nueva);
+    },
+    async borrarDesafio(clave, id) {
+      verificar(clave);
+      const lista = await catalogo();
+      if (visibles(lista).length <= 1) throw new ErrorApi('La ruleta necesita al menos un desafío.');
+      const nueva = lista.map(d => (d.id === id ? { ...d, activo: false } : d));
+      guardarLocal(CLAVE_DESAFIOS_DEMO, nueva);
+      return visibles(nueva);
     },
     urlFoto: (foto, ancho) => (ancho <= 600 ? foto.mini : foto.url),
   };

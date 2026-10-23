@@ -1,6 +1,5 @@
-// Panel del organizador: crear cumpleaños, código QR único de cada uno, moderación y descarga de fotos.
+// Panel del organizador: cumpleaños, desafíos, código QR único de cada cumple, moderación y descarga de fotos.
 import { crearApi } from './api.js';
-import { DESAFIOS } from './desafios.js';
 
 const $ = sel => document.querySelector(sel);
 const api = crearApi();
@@ -9,6 +8,7 @@ const CLAVE_SESION = 'cumple-admin:clave';
 
 let clave = '';
 let eventos = [];
+let desafios = [];
 let evento = null;
 let estadoActual = 'pendiente';
 let siguiente = null;
@@ -23,11 +23,14 @@ function mostrarError(selector, err) {
 
 async function entrar(valor) {
   eventos = await api.eventos(valor); // también verifica la clave
+  desafios = await api.desafios(valor);
   clave = valor;
   try { sessionStorage.setItem(CLAVE_SESION, clave); } catch { /* sin almacenamiento */ }
   $('#form-entrar').hidden = true;
   $('#sec-eventos').hidden = false;
+  $('#sec-desafios').hidden = false;
   dibujarEventos();
+  dibujarDesafios();
   const pedido = new URLSearchParams(location.search).get('e');
   const elegido = eventos.find(ev => ev.id === pedido);
   if (elegido) abrirEvento(elegido);
@@ -70,17 +73,21 @@ function dibujarEventos() {
 /* ---------- Crear o editar ---------- */
 
 const form = $('#form-evento');
-$('#checks-desafios').replaceChildren(...DESAFIOS.map(d => {
-  const label = document.createElement('label');
-  label.className = 'opcion';
-  label.innerHTML = '<input type="checkbox" name="desafio" checked> <span></span>';
-  label.querySelector('input').value = d.id;
-  label.querySelector('span').textContent = `${d.emoji} ${d.nombre}`;
-  return label;
-}));
+
+function dibujarChecks() {
+  $('#checks-desafios').replaceChildren(...desafios.map(d => {
+    const label = document.createElement('label');
+    label.className = 'opcion';
+    label.innerHTML = '<input type="checkbox" name="desafio" checked> <span></span>';
+    label.querySelector('input').value = d.id;
+    label.querySelector('span').textContent = `${d.emoji} ${d.nombre}`;
+    return label;
+  }));
+}
 
 function abrirFormulario(ev) {
   form.reset();
+  dibujarChecks();
   form.dataset.id = ev ? ev.id : '';
   $('#form-evento-titulo').textContent = ev ? `Editar · ${ev.titulo}` : 'Nuevo cumpleaños';
   if (ev) {
@@ -88,7 +95,7 @@ function abrirFormulario(ev) {
       if (ev[campo]) form.elements[campo].value = ev[campo];
     }
     form.querySelector(`[name=publicacion][value=${ev.publicacion === 'moderada' ? 'moderada' : 'automatica'}]`).checked = true;
-    const habilitados = ev.desafios && ev.desafios.length ? ev.desafios : DESAFIOS.map(d => d.id);
+    const habilitados = ev.desafios && ev.desafios.length ? ev.desafios : desafios.map(d => d.id);
     form.querySelectorAll('[name=desafio]').forEach(c => { c.checked = habilitados.includes(c.value); });
     form.elements.activo.checked = ev.activo !== false;
   }
@@ -119,7 +126,7 @@ form.addEventListener('submit', async e => {
     colorSecundario: form.elements.colorSecundario.value,
     publicacion: form.querySelector('[name=publicacion]:checked').value,
     // Todos marcados = lista vacía, así los desafíos nuevos que se agreguen entran solos.
-    desafios: elegidos.length === DESAFIOS.length ? [] : elegidos,
+    desafios: elegidos.length === desafios.length ? [] : elegidos,
     activo: form.elements.activo.checked,
   };
   const boton = form.querySelector('[type=submit]');
@@ -136,11 +143,124 @@ form.addEventListener('submit', async e => {
   }
 });
 
+/* ---------- Desafíos ---------- */
+
+const formDesafio = $('#form-desafio');
+
+function dibujarDesafios() {
+  $('#lista-desafios-admin').replaceChildren(...desafios.map(d => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="desafio-emoji" aria-hidden="true"></span><span class="desafio-texto"><strong></strong><small></small></span>';
+    li.querySelector('.desafio-emoji').textContent = d.emoji;
+    li.querySelector('strong').textContent = d.nombre;
+    li.querySelector('small').textContent = d.instrucciones;
+    const editar = Object.assign(document.createElement('button'), { type: 'button', className: 'btn-editar', textContent: 'Editar' });
+    editar.setAttribute('aria-label', `Editar ${d.nombre}`);
+    editar.addEventListener('click', () => abrirFormularioDesafio(d));
+    const borrar = Object.assign(document.createElement('button'), { type: 'button', className: 'btn-rechazar', textContent: 'Borrar' });
+    borrar.setAttribute('aria-label', `Borrar ${d.nombre}`);
+    borrar.addEventListener('click', async () => {
+      if (!confirm(`¿Borrar el desafío "${d.nombre}"? Deja de salir en la ruleta de todos los cumpleaños. Las fotos que ya lo cumplieron no se borran.`)) return;
+      mostrarError('#error-desafios', null);
+      try {
+        desafios = await api.borrarDesafio(clave, d.id);
+        dibujarDesafios();
+      } catch (err) {
+        mostrarError('#error-desafios', err);
+      }
+    });
+    li.append(editar, borrar);
+    return li;
+  }));
+}
+
+function abrirFormularioDesafio(d) {
+  formDesafio.reset();
+  formDesafio.dataset.id = d ? d.id : '';
+  $('#form-desafio-titulo').textContent = d ? `Editar · ${d.nombre}` : 'Nuevo desafío';
+  if (d) {
+    for (const campo of ['emoji', 'nombre', 'instrucciones', 'aviso']) formDesafio.elements[campo].value = d[campo] || '';
+    formDesafio.elements.contacto.checked = !!d.contacto;
+  }
+  mostrarError('#error-desafio', null);
+  formDesafio.hidden = false;
+  formDesafio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  formDesafio.elements.nombre.focus({ preventScroll: true });
+}
+
+$('#btn-nuevo-desafio').addEventListener('click', () => abrirFormularioDesafio(null));
+$('#btn-cancelar-desafio').addEventListener('click', () => { formDesafio.hidden = true; });
+
+formDesafio.addEventListener('submit', async e => {
+  e.preventDefault();
+  const boton = formDesafio.querySelector('[type=submit]');
+  boton.disabled = true;
+  mostrarError('#error-desafio', null);
+  try {
+    desafios = await api.guardarDesafio(clave, {
+      id: formDesafio.dataset.id || undefined,
+      emoji: formDesafio.elements.emoji.value,
+      nombre: formDesafio.elements.nombre.value,
+      instrucciones: formDesafio.elements.instrucciones.value,
+      aviso: formDesafio.elements.aviso.value,
+      contacto: formDesafio.elements.contacto.checked,
+    });
+    formDesafio.hidden = true;
+    dibujarDesafios();
+  } catch (err) {
+    mostrarError('#error-desafio', err);
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+/* ---------- Borrar cumpleaños ---------- */
+
+function cerrarBorrado() {
+  $('#confirmar-borrado').hidden = true;
+  $('#btn-borrar-evento').hidden = false;
+  $('#in-confirmar-borrado').value = '';
+  $('#btn-confirmar-borrado').disabled = true;
+  mostrarError('#error-borrar', null);
+}
+
+$('#btn-borrar-evento').addEventListener('click', () => {
+  $('#btn-borrar-evento').hidden = true;
+  $('#confirmar-borrado').hidden = false;
+  $('#in-confirmar-borrado').focus();
+});
+$('#btn-cancelar-borrado').addEventListener('click', cerrarBorrado);
+$('#in-confirmar-borrado').addEventListener('input', e => {
+  $('#btn-confirmar-borrado').disabled = e.target.value.trim().toUpperCase() !== 'BORRAR';
+});
+
+$('#btn-confirmar-borrado').addEventListener('click', async () => {
+  const boton = $('#btn-confirmar-borrado');
+  boton.disabled = true;
+  boton.textContent = 'Borrando…';
+  try {
+    await api.borrarEvento(clave, evento.id);
+    eventos = eventos.filter(ev => ev.id !== evento.id);
+    evento = null;
+    cerrarBorrado();
+    $('#panel').hidden = true;
+    history.replaceState(null, '', api.modoDemo ? '?demo' : location.pathname);
+    dibujarEventos();
+    $('#sec-eventos').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    mostrarError('#error-borrar', err);
+    boton.disabled = false;
+  } finally {
+    boton.textContent = 'Borrar para siempre';
+  }
+});
+
 /* ---------- Código QR ---------- */
 
 function abrirEvento(ev) {
   evento = ev;
   history.replaceState(null, '', `?${new URLSearchParams({ e: ev.id, ...(api.modoDemo ? { demo: '' } : {}) })}`);
+  cerrarBorrado();
   form.hidden = true;
   $('#panel').hidden = false;
   dibujarEventos();

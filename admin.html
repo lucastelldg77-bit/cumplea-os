@@ -37,6 +37,36 @@
       <ul class="lista-eventos" id="lista-eventos"></ul>
     </section>
 
+    <section class="tarjeta-admin" id="sec-desafios" hidden>
+      <div class="fila-titulo">
+        <h2>Desafíos</h2>
+        <button type="button" class="boton boton-chico" id="btn-nuevo-desafio">+ Nuevo</button>
+      </div>
+      <p class="ayuda">Son los desafíos que pueden salir en la ruleta. En cada cumpleaños elegís cuáles entran.</p>
+      <p class="mensaje-error" id="error-desafios" role="alert" hidden></p>
+      <ul class="lista-desafios-admin" id="lista-desafios-admin"></ul>
+    </section>
+
+    <form class="tarjeta-admin" id="form-desafio" hidden>
+      <h2 id="form-desafio-titulo">Nuevo desafío</h2>
+      <div class="dos-columnas columnas-emoji">
+        <label>Emoji <input name="emoji" maxlength="8" value="🎯"></label>
+        <label>Nombre <input name="nombre" required maxlength="40" placeholder="Con el cumpleañero"></label>
+      </div>
+      <label>Instrucciones
+        <textarea name="instrucciones" required maxlength="300" rows="3" placeholder="Te deberás sacar una foto con el cumpleañero en cualquier momento de la fiesta."></textarea>
+      </label>
+      <label>Aviso (opcional)
+        <input name="aviso" maxlength="200" placeholder="Por ejemplo: pedí permiso antes de sacar la foto.">
+      </label>
+      <label class="opcion"><input type="checkbox" name="contacto"> Implica contacto físico (muestra el aviso de consentimiento)</label>
+      <p class="mensaje-error" id="error-desafio" role="alert" hidden></p>
+      <div class="acciones fila">
+        <button type="submit" class="boton">Guardar</button>
+        <button type="button" class="boton boton-secundario" id="btn-cancelar-desafio">Cancelar</button>
+      </div>
+    </form>
+
     <form class="tarjeta-admin" id="form-evento" hidden>
       <h2 id="form-evento-titulo">Nuevo cumpleaños</h2>
       <label>Título <input name="titulo" required maxlength="60" placeholder="Cumple de Martina"></label>
@@ -96,6 +126,22 @@
         <p class="mensaje-error" id="error-fotos" role="alert" hidden></p>
         <ul class="lista-moderacion" id="lista-fotos"></ul>
         <button type="button" class="boton boton-secundario" id="btn-mas" hidden>Ver más</button>
+      </section>
+
+      <section class="tarjeta-admin zona-peligro">
+        <h2>Borrar este cumpleaños</h2>
+        <p class="ayuda">Borra el cumpleaños, su código QR y <strong>todas sus fotos</strong>. No se puede deshacer. Antes, usá <strong>Descargar todas</strong> si querés guardar una copia.</p>
+        <button type="button" class="boton boton-peligro" id="btn-borrar-evento">Borrar cumpleaños</button>
+        <div class="confirmar-borrado" id="confirmar-borrado" hidden>
+          <label>Para confirmar, escribí <strong>BORRAR</strong>
+            <input id="in-confirmar-borrado" autocomplete="off" autocapitalize="characters">
+          </label>
+          <div class="acciones fila">
+            <button type="button" class="boton boton-peligro" id="btn-confirmar-borrado" disabled>Borrar para siempre</button>
+            <button type="button" class="boton boton-secundario" id="btn-cancelar-borrado">Cancelar</button>
+          </div>
+        </div>
+        <p class="mensaje-error" id="error-borrar" role="alert" hidden></p>
       </section>
     </div>
   </main>

@@ -4,12 +4,44 @@
  *   { accion: 'guardarEvento', evento: {...} }             → crea (sin id) o edita un cumpleaños
  *   { accion: 'listar', e, estado, desde }                 → fotos de un estado
  *   { accion: 'moderar', e, id, estado }                   → publica, oculta o rechaza una foto
+ *   { accion: 'borrarEvento', e, confirmar: e }            → borra el cumpleaños y todas sus fotos
+ *   { accion: 'desafios' }                                 → lista de desafíos (sin los borrados)
+ *   { accion: 'guardarDesafio', desafio: {...} }           → crea (sin id) o edita un desafío
+ *   { accion: 'borrarDesafio', id }                        → saca un desafío de la lista
  */
 const {
-  ESTADOS, RE_SUBIDA, ErrorUsuario, manejar, leerJson, verificarClave,
+  ESTADOS, RE_SUBIDA, RE_DESAFIO, ErrorUsuario, manejar, leerJson, verificarClave,
   ruta, rutaMarcador, leerBlobJson, guardarJson, listarTodo, del,
-  leerEvento, limpiarEvento, nuevoIdEvento, estadoDeSubida, listarFotos, paginar,
+  leerEvento, limpiarEvento, nuevoIdEvento, borrarEvento, estadoDeSubida, listarFotos, paginar,
+  leerDesafios, guardarDesafios, limpiarDesafio, nuevoIdDesafio,
 } = require('./_lib/comun');
+
+const visibles = catalogo => catalogo.filter(d => d.activo !== false);
+
+async function guardarDesafio(datos) {
+  if (!datos || typeof datos !== 'object') throw new ErrorUsuario('Faltan los datos del desafío.');
+  const catalogo = await leerDesafios();
+  let id = datos.id;
+  if (id) {
+    if (!RE_DESAFIO.test(String(id)) || !catalogo.some(d => d.id === id)) throw new ErrorUsuario('No encontramos ese desafío.', 404);
+  } else {
+    id = nuevoIdDesafio(datos.nombre, catalogo);
+  }
+  const desafio = limpiarDesafio(datos, id);
+  const nuevo = catalogo.some(d => d.id === id) ? catalogo.map(d => (d.id === id ? desafio : d)) : [...catalogo, desafio];
+  await guardarDesafios(nuevo);
+  return { desafio, desafios: visibles(nuevo) };
+}
+
+// No se elimina: queda inactivo para que las fotos que ya lo cumplieron sigan mostrando su nombre.
+async function borrarDesafio(id) {
+  const catalogo = await leerDesafios();
+  if (!catalogo.some(d => d.id === id && d.activo !== false)) throw new ErrorUsuario('No encontramos ese desafío.', 404);
+  if (visibles(catalogo).length <= 1) throw new ErrorUsuario('La ruleta necesita al menos un desafío.');
+  const nuevo = catalogo.map(d => (d.id === id ? { ...d, activo: false } : d));
+  await guardarDesafios(nuevo);
+  return { desafios: visibles(nuevo) };
+}
 
 async function eventos() {
   const { carpetas } = await listarTodo('cumples/', { mode: 'folded' });
@@ -56,6 +88,13 @@ module.exports = manejar(async req => {
       return paginar(await listarFotos(evento.id, estado), d.desde);
     }
     case 'moderar': return moderar(d);
+    case 'borrarEvento': {
+      if (!d.e || d.confirmar !== d.e) throw new ErrorUsuario('Falta confirmar el borrado.');
+      return { borrados: await borrarEvento(d.e) };
+    }
+    case 'desafios': return { desafios: visibles(await leerDesafios()) };
+    case 'guardarDesafio': return guardarDesafio(d.desafio);
+    case 'borrarDesafio': return borrarDesafio(d.id);
     default: throw new ErrorUsuario('Acción desconocida.');
   }
 });

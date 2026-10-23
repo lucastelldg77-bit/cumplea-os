@@ -8,12 +8,15 @@
  *   cumples/<evento>/subidas/<subida>.json                datos de la foto (desafío, fecha, sesión…)
  *   cumples/<evento>/estado/<estado>/<fecha>_<subida>_<desafio>.json
  *       marcador del estado (publicada / pendiente / rechazada). La galería lista esta carpeta.
+ *   config/desafios.json                                  desafíos editados desde el panel
+ *                                                         (si no existe, se usan los de js/desafios-base.json)
  *
  * Los nombres dependen solo del id de subida que genera el celular, así que si la misma
  * foto llega dos veces (reintento por corte de conexión) se pisa a sí misma y no se duplica.
  */
 const { put, head, list, del, BlobNotFoundError } = require('@vercel/blob');
 const crypto = require('crypto');
+const DESAFIOS_BASE = require('../../js/desafios-base.json');
 
 const ESTADOS = ['publicada', 'pendiente', 'rechazada'];
 const RE_EVENTO = /^[a-z0-9-]{3,60}$/;
@@ -165,6 +168,68 @@ function nuevoIdEvento(titulo) {
   return `${base}-${crypto.randomBytes(3).toString('hex')}`;
 }
 
+// Borra el cumpleaños completo: configuración, fotos y datos. No se puede deshacer.
+async function borrarEvento(id) {
+  await leerEvento(id, { incluirInactivo: true }); // tiene que existir
+  const { blobs } = await listarTodo(ruta(id) + '/');
+  for (let i = 0; i < blobs.length; i += 500) {
+    await del(blobs.slice(i, i + 500).map(b => b.url));
+  }
+  return blobs.length;
+}
+
+/* ---------- Desafíos ---------- */
+
+const RUTA_DESAFIOS = 'config/desafios.json';
+
+// Lista completa, incluidos los borrados (activo: false), que se conservan por el nombre de sus fotos.
+async function leerDesafios() {
+  const guardados = await leerBlobJson(RUTA_DESAFIOS);
+  return Array.isArray(guardados) ? guardados : DESAFIOS_BASE.map(d => ({ ...d }));
+}
+
+function guardarDesafios(lista) {
+  return guardarJson(RUTA_DESAFIOS, lista);
+}
+
+function limpiarDesafio(datos, id) {
+  const texto = (v, max) => String(v || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, max);
+  const desafio = {
+    id,
+    nombre: texto(datos.nombre, 40),
+    emoji: texto(datos.emoji, 8) || '🎯',
+    instrucciones: texto(datos.instrucciones, 300),
+  };
+  if (!desafio.nombre) throw new ErrorUsuario('El desafío necesita un nombre.');
+  if (!desafio.instrucciones) throw new ErrorUsuario('Escribí las instrucciones del desafío.');
+  const aviso = texto(datos.aviso, 200);
+  if (aviso) desafio.aviso = aviso;
+  if (datos.contacto) desafio.contacto = true;
+  return desafio;
+}
+
+function nuevoIdDesafio(nombre, existentes) {
+  const base = String(nombre || 'desafio').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'desafio';
+  let id = base;
+  for (let n = 2; existentes.some(d => d.id === id) || id === 'libre'; n++) id = `${base}-${n}`;
+  return id;
+}
+
+// Desafíos que entran en la ruleta de un evento: los activos que eligió (ninguno elegido = todos).
+function desafiosDelEvento(catalogo, ids) {
+  const activos = catalogo.filter(d => d.activo !== false);
+  if (!ids || !ids.length) return activos;
+  const elegidos = activos.filter(d => ids.includes(d.id));
+  return elegidos.length ? elegidos : activos;
+}
+
+function nombreDeDesafio(catalogo, id) {
+  if (id === 'libre') return 'Foto libre';
+  const desafio = catalogo.find(d => d.id === id);
+  return desafio ? desafio.nombre : id;
+}
+
 /* ---------- Fotos ---------- */
 
 // Busca en qué estado está una subida (o null si todavía no tiene marcador).
@@ -177,13 +242,14 @@ async function estadoDeSubida(evento, sub) {
 
 async function listarFotos(evento, estado) {
   const prefijo = ruta(evento, 'estado', estado) + '/';
-  const { blobs } = await listarTodo(prefijo);
+  const [{ blobs }, catalogo] = await Promise.all([listarTodo(prefijo), leerDesafios()]);
   return blobs.map(b => {
     const [fecha, uploadId, desafioId] = b.pathname.slice(prefijo.length).replace(/\.json$/, '').split('_');
     const base = b.url.slice(0, b.url.length - b.pathname.length);
     return {
       id: uploadId,
       desafioId,
+      desafioNombre: nombreDeDesafio(catalogo, desafioId),
       fecha: new Date(Number(fecha)).toISOString(),
       url: base + ruta(evento, 'fotos', `${uploadId}.jpg`),
       mini: base + ruta(evento, 'mini', `${uploadId}.jpg`),
@@ -201,5 +267,6 @@ module.exports = {
   ESTADOS, RE_EVENTO, RE_SUBIDA, RE_DESAFIO, ErrorUsuario,
   manejar, parametros, leerJson, verificarClave,
   ruta, rutaMarcador, existe, leerBlobJson, guardarJson, guardarImagen, listarTodo, del,
-  leerEvento, limpiarEvento, nuevoIdEvento, estadoDeSubida, listarFotos, paginar,
+  leerEvento, limpiarEvento, nuevoIdEvento, borrarEvento, estadoDeSubida, listarFotos, paginar,
+  leerDesafios, guardarDesafios, limpiarDesafio, nuevoIdDesafio, desafiosDelEvento,
 };

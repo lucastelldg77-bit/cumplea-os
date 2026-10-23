@@ -7,7 +7,7 @@
  */
 import { crearApi } from './api.js';
 import { crearRuleta } from './ruleta.js';
-import { desafiosHabilitados, buscarDesafio, FOTO_LIBRE, AVISO_CONSENTIMIENTO } from './desafios.js';
+import { usarDesafios, buscarDesafio, FOTO_LIBRE, AVISO_CONSENTIMIENTO } from './desafios.js';
 import { prepararFoto } from './imagen.js';
 import { crearGaleria } from './galeria.js';
 import * as idb from './idb.js';
@@ -358,7 +358,13 @@ async function iniciar() {
   }
   aplicarCabecera();
 
-  const desafios = desafiosHabilitados(evento.desafios);
+  // El servidor manda los desafíos de este cumple, tal como los dejó el organizador en el panel.
+  const desafios = evento.desafios || [];
+  usarDesafios(desafios);
+  if (!desafios.length) {
+    $('#error-texto').textContent = 'Este cumpleaños todavía no tiene desafíos cargados.';
+    return mostrarPantalla('p-error');
+  }
   ruleta = crearRuleta($('#ruleta'), { items: desafios, centro: evento.emoji, alTerminar: alSalirDesafio });
   $('#lista-desafios').replaceChildren(...desafios.map(d => {
     const li = document.createElement('li');

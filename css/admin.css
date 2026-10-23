@@ -1,4 +1,6 @@
 .admin { display: grid; gap: 18px; }
+/* Sin esto, los textos largos de una sola línea ensanchan las tarjetas fuera de la pantalla. */
+.admin > *, .tarjeta-admin > * { min-width: 0; }
 .tarjeta-admin {
   display: grid; gap: 14px; padding: 20px; border-radius: var(--radio);
   background: var(--tarjeta); box-shadow: var(--sombra); text-align: left;
@@ -53,5 +55,30 @@
 .tarjeta-admin legend { font-weight: 800; padding: 0 6px; }
 .tarjeta-admin label.opcion { display: flex; align-items: center; gap: 10px; font-weight: 500; min-height: 36px; }
 .tarjeta-admin label.opcion input { min-height: 0; width: 20px; height: 20px; accent-color: var(--principal); }
+.tarjeta-admin textarea {
+  padding: 10px 14px; border-radius: 12px; border: 2px solid var(--borde); background: #fff; color: var(--tinta);
+  font: inherit; resize: vertical;
+}
+.tarjeta-admin textarea:focus { border-color: var(--principal); outline: none; }
+.columnas-emoji { grid-template-columns: 90px 1fr; }
+.lista-desafios-admin { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.lista-desafios-admin li {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px;
+  border: 2px solid var(--borde); border-radius: 14px;
+}
+.lista-desafios-admin .desafio-emoji { font-size: 24px; }
+.lista-desafios-admin .desafio-texto { flex: 1; min-width: 0; }
+.lista-desafios-admin .desafio-texto strong { display: block; }
+.lista-desafios-admin .desafio-texto small {
+  display: block; color: var(--tinta-suave); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lista-desafios-admin button {
+  flex: none; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 0; cursor: pointer; font-weight: 700; font-size: 13px;
+}
+.btn-editar { background: color-mix(in srgb, var(--principal) 10%, white); color: var(--principal); }
+.zona-peligro { border: 2px solid #ffc9d6; }
+.boton-peligro { background: var(--error); box-shadow: 0 5px 0 #6d001d; }
+.boton-peligro:active:not(:disabled) { box-shadow: 0 1px 0 #6d001d; }
+.confirmar-borrado { display: grid; gap: 12px; }
 .lista-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
 @media (max-width: 380px) { .lista-checks { grid-template-columns: 1fr; } }

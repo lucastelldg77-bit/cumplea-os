@@ -10,7 +10,7 @@ Web para invitados: escanean el QR, giran la ruleta, les toca un desafío fotogr
 |---|---|
 | `index.html` | La web de los invitados (ruleta, desafío, subida y galería). |
 | `admin.html` | Panel del organizador: crear cumpleaños, código QR, moderar y descargar fotos. |
-| `js/desafios.js` | **Los desafíos.** Para agregar uno nuevo, sumalo al final con un `id` nuevo. |
+| `js/desafios-base.json` | Los 9 desafíos originales. Se usan hasta que edites la lista desde el panel. |
 | `js/ruleta.js` | La ruleta como componente independiente (se puede usar en otras webs). |
 | `api/` | El servidor (funciones de Vercel) que guarda las fotos en Vercel Blob. |
 
@@ -63,7 +63,18 @@ Al terminar muestra la dirección, por ejemplo `https://cumple-ruleta.vercel.app
 2. Tocá **+ Nuevo** y completá: título, subtítulo, fecha, emoji, colores, si las fotos se publican **al instante** o **después de aprobarlas**, y qué desafíos entran en la ruleta.
 3. Tocá **Guardar**. Aparece el **código QR** único de ese cumple: **Descargar QR** para imprimirlo.
 4. Después de la fiesta: **Descargar todas** baja un `.zip` con todas las fotos, separadas en publicadas, pendientes y ocultas.
-5. Para cerrar un evento: **Editar** → desmarcá "Recibe fotos".
+5. Para cerrar un evento sin borrarlo: **Editar** → desmarcá "Recibe fotos".
+6. Para **borrar** un cumpleaños: abajo de todo en su panel, **Borrar cumpleaños** → escribí `BORRAR` → **Borrar para siempre**. Se borran el cumple y todas sus fotos, y no se puede deshacer, así que antes usá **Descargar todas**.
+
+## Desafíos
+
+En el panel, la sección **Desafíos** tiene la lista de desafíos que pueden salir en la ruleta:
+
+- **+ Nuevo**: emoji, nombre, instrucciones, un aviso opcional y si implica contacto físico (muestra el aviso de consentimiento).
+- **Editar**: cambia el texto. Los cumpleaños que ya lo usan se actualizan solos.
+- **Borrar**: deja de salir en la ruleta de todos los cumpleaños. Las fotos que ya lo cumplieron se conservan con su nombre.
+
+En cada cumpleaños, **Editar → Desafíos de la ruleta** elige cuáles entran. Si están todos marcados, los desafíos nuevos que agregues después entran solos.
 
 ## Moderación
 
@@ -84,4 +95,4 @@ Al terminar muestra la dirección, por ejemplo `https://cumple-ruleta.vercel.app
 
 - El plan gratuito de Vercel tiene un tope de espacio y de tráfico por mes para Blob. Cada foto ocupa unos 300 KB. Revisá el uso en **Storage** del proyecto y descargá y borrá los eventos viejos si hace falta.
 - La galería no pide contraseña: la ve cualquiera que tenga el QR. Las fotos pendientes no aparecen en la galería y su dirección no se puede adivinar.
-- Para cambiar los textos o los desafíos, editá los archivos y volvé a ejecutar `npx vercel cumple --prod`.
+- Para cambiar el código, subí los archivos modificados a GitHub (arrastrando las carpetas `api`, `css` y `js` en **Add file → Upload files**). Vercel publica solo.
