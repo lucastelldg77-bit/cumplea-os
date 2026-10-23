@@ -1,0 +1,9 @@
+{
+  "name": "cumple-ruleta",
+  "private": true,
+  "description": "Ruleta de desafíos y galería de fotos para cumpleaños (Vercel + Vercel Blob)",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@vercel/blob": "^1.0.0"
+  }
+}

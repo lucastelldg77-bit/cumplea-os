@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e5007d">
+  <title>Ruleta del cumple</title>
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="cabecera" id="cabecera">
+    <div class="cabecera-emoji" id="cab-emoji" aria-hidden="true">🎉</div>
+    <h1 id="cab-titulo">Cumpleaños</h1>
+    <p class="cabecera-subtitulo" id="cab-subtitulo"></p>
+    <p class="cabecera-fecha" id="cab-fecha"></p>
+  </header>
+  <p class="aviso-demo" id="aviso-demo" hidden>Modo demostración: las fotos quedan guardadas solo en este navegador.</p>
+
+  <main id="principal">
+    <section class="pantalla" id="p-cargando">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Cargando la fiesta…</p>
+    </section>
+
+    <section class="pantalla" id="p-error" hidden>
+      <div class="icono-grande" aria-hidden="true">🔎</div>
+      <h2 tabindex="-1">No encontramos este cumpleaños</h2>
+      <p id="error-texto">Escaneá de nuevo el código QR de la fiesta.</p>
+      <button type="button" class="boton" id="btn-reintentar-carga">Reintentar</button>
+    </section>
+
+    <section class="pantalla" id="p-ruleta" hidden>
+      <h2 tabindex="-1">¡Girá la ruleta y cumplí tu desafío!</h2>
+      <p class="bajada">Te va a tocar una foto para sacar durante la fiesta.</p>
+      <div id="ruleta"></div>
+      <details class="lista-desafios">
+        <summary>Ver todos los desafíos</summary>
+        <ul id="lista-desafios"></ul>
+      </details>
+      <p class="nota-privacidad" data-privacidad></p>
+      <div class="acciones-secundarias">
+        <button type="button" class="boton-link" id="btn-sin-desafio">Prefiero subir una foto sin desafío</button>
+        <a class="boton-link" href="#galeria">Ver la galería</a>
+      </div>
+    </section>
+
+    <section class="pantalla" id="p-desafio" hidden>
+      <p class="etiqueta">Tu desafío</p>
+      <h2 tabindex="-1" class="sr-only" id="desafio-titulo-oculto">Tu desafío</h2>
+      <div class="tarjeta-desafio" id="desafio-tarjeta"></div>
+      <button type="button" class="boton boton-grande" id="btn-tengo-foto">¡Ya tengo mi foto!</button>
+      <div class="opciones-foto" id="opciones-foto" hidden>
+        <label class="boton boton-archivo">
+          <span aria-hidden="true">📷</span> Sacar una foto
+          <input type="file" accept="image/*" capture="environment" id="in-camara" class="sr-only">
+        </label>
+        <label class="boton boton-secundario boton-archivo">
+          <span aria-hidden="true">🖼️</span> Elegir de mi galería
+          <input type="file" accept="image/*" id="in-galeria" class="sr-only">
+        </label>
+      </div>
+      <p class="mensaje-error" id="error-foto" role="alert" hidden></p>
+      <button type="button" class="boton-link" id="btn-cambiar">Cambiar de desafío</button>
+    </section>
+
+    <section class="pantalla" id="p-vista-previa" hidden>
+      <h2 tabindex="-1">¿Subimos esta foto?</h2>
+      <figure class="vista-previa">
+        <img id="previa-img" alt="Vista previa de tu foto">
+        <figcaption id="previa-desafio"></figcaption>
+      </figure>
+      <p class="nota-privacidad" data-privacidad></p>
+      <div class="progreso" id="progreso" hidden>
+        <div class="progreso-barra"><div id="progreso-relleno"></div></div>
+        <p id="progreso-texto" role="status" aria-live="polite">Subiendo tu foto…</p>
+      </div>
+      <p class="mensaje-error" id="error-subida" role="alert" hidden></p>
+      <div class="acciones" id="acciones-previa">
+        <button type="button" class="boton boton-grande" id="btn-subir">Confirmar y subir</button>
+        <button type="button" class="boton boton-secundario" id="btn-otra">Elegir otra foto</button>
+      </div>
+    </section>
+
+    <section class="pantalla" id="p-listo" hidden>
+      <div class="icono-grande festejo" aria-hidden="true">🎉</div>
+      <h2 tabindex="-1" id="listo-titulo">¡Desafío cumplido!</h2>
+      <p class="bajada" id="listo-texto">Tu recuerdo ya forma parte de la fiesta.</p>
+      <div class="acciones">
+        <a class="boton boton-grande" href="#galeria">Ver la galería</a>
+        <button type="button" class="boton boton-secundario" id="btn-otra-vez">Jugar otra vez</button>
+      </div>
+    </section>
+
+    <section class="pantalla pantalla-galeria" id="p-galeria" hidden>
+      <h2 tabindex="-1" class="sr-only">Galería</h2>
+      <div id="galeria"></div>
+      <button type="button" class="boton boton-flotante" id="btn-volver-jugar">🎡 Girar la ruleta</button>
+    </section>
+  </main>
+
+  <div class="modal" id="modal-resultado" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modal-titulo" aria-describedby="modal-instrucciones">
+      <div class="confeti" aria-hidden="true"></div>
+      <div class="modal-emoji" id="modal-emoji" aria-hidden="true"></div>
+      <h2 id="modal-titulo" tabindex="-1">¡Felicidades!</h2>
+      <p class="modal-desafio" id="modal-desafio"></p>
+      <p id="modal-instrucciones"></p>
+      <p class="aviso" id="modal-aviso" hidden></p>
+      <div class="acciones">
+        <button type="button" class="boton boton-grande" id="btn-aceptar">Aceptar desafío</button>
+        <button type="button" class="boton boton-secundario" id="btn-volver-girar">Volver a girar</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

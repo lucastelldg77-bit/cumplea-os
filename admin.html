@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Panel del cumple</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script type="module" src="js/admin.js"></script>
+</head>
+<body>
+  <header class="cabecera">
+    <div class="cabecera-emoji" aria-hidden="true">🛠️</div>
+    <h1>Panel del cumple</h1>
+    <p class="cabecera-subtitulo">Cumpleaños, código QR y fotos</p>
+  </header>
+  <p class="aviso-demo" id="aviso-demo" hidden>Modo demostración: la clave es <strong>demo</strong>. Todo queda guardado solo en este navegador.</p>
+
+  <main class="admin">
+    <form class="tarjeta-admin" id="form-entrar">
+      <h2>Entrar</h2>
+      <label>Clave de administración
+        <input id="in-clave" type="password" required autocomplete="current-password">
+      </label>
+      <button class="boton" type="submit">Entrar</button>
+      <p class="mensaje-error" id="error-entrar" role="alert" hidden></p>
+    </form>
+
+    <section class="tarjeta-admin" id="sec-eventos" hidden>
+      <div class="fila-titulo">
+        <h2>Cumpleaños</h2>
+        <button type="button" class="boton boton-chico" id="btn-nuevo">+ Nuevo</button>
+      </div>
+      <ul class="lista-eventos" id="lista-eventos"></ul>
+    </section>
+
+    <form class="tarjeta-admin" id="form-evento" hidden>
+      <h2 id="form-evento-titulo">Nuevo cumpleaños</h2>
+      <label>Título <input name="titulo" required maxlength="60" placeholder="Cumple de Martina"></label>
+      <label>Subtítulo <input name="subtitulo" maxlength="90" placeholder="¡Gracias por venir a festejar!"></label>
+      <div class="dos-columnas">
+        <label>Fecha <input name="fecha" type="date"></label>
+        <label>Emoji <input name="emoji" maxlength="8" value="🎂"></label>
+      </div>
+      <div class="dos-columnas">
+        <label>Color principal <input name="colorPrincipal" type="color" value="#e5007d"></label>
+        <label>Color secundario <input name="colorSecundario" type="color" value="#ffb703"></label>
+      </div>
+      <fieldset>
+        <legend>¿Cómo se publican las fotos?</legend>
+        <label class="opcion"><input type="radio" name="publicacion" value="automatica" checked> Al instante en la galería</label>
+        <label class="opcion"><input type="radio" name="publicacion" value="moderada"> Después de que yo las apruebe</label>
+      </fieldset>
+      <fieldset>
+        <legend>Desafíos de la ruleta</legend>
+        <div class="lista-checks" id="checks-desafios"></div>
+      </fieldset>
+      <label class="opcion"><input type="checkbox" name="activo" checked> Recibe fotos (desmarcalo para cerrar el evento)</label>
+      <p class="mensaje-error" id="error-evento" role="alert" hidden></p>
+      <div class="acciones fila">
+        <button type="submit" class="boton">Guardar</button>
+        <button type="button" class="boton boton-secundario" id="btn-cancelar-evento">Cancelar</button>
+      </div>
+    </form>
+
+    <div id="panel" hidden>
+      <section class="tarjeta-admin">
+        <div class="fila-titulo">
+          <h2 id="panel-titulo">Código QR</h2>
+          <button type="button" class="boton boton-chico boton-secundario" id="btn-editar">Editar</button>
+        </div>
+        <p class="ayuda" id="panel-publicacion"></p>
+        <canvas id="qr" width="640" height="760" aria-label="Código QR del cumpleaños"></canvas>
+        <p class="enlace"><a id="enlace-evento" target="_blank" rel="noopener"></a></p>
+        <div class="acciones fila">
+          <button type="button" class="boton" id="btn-descargar-qr">Descargar QR</button>
+          <button type="button" class="boton boton-secundario" id="btn-copiar">Copiar enlace</button>
+        </div>
+      </section>
+
+      <section class="tarjeta-admin">
+        <div class="fila-titulo">
+          <h2>Fotos</h2>
+          <button type="button" class="boton boton-chico boton-secundario" id="btn-zip">Descargar todas</button>
+        </div>
+        <p class="ayuda" id="estado-zip" role="status" aria-live="polite"></p>
+        <div class="pestanas" role="tablist">
+          <button type="button" role="tab" data-estado="pendiente" aria-selected="true">Pendientes</button>
+          <button type="button" role="tab" data-estado="publicada" aria-selected="false">Publicadas</button>
+          <button type="button" role="tab" data-estado="rechazada" aria-selected="false">Ocultas</button>
+        </div>
+        <p class="ayuda" id="ayuda-fotos"></p>
+        <p class="mensaje-error" id="error-fotos" role="alert" hidden></p>
+        <ul class="lista-moderacion" id="lista-fotos"></ul>
+        <button type="button" class="boton boton-secundario" id="btn-mas" hidden>Ver más</button>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
