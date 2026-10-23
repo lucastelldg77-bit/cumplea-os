@@ -12,7 +12,7 @@
  * Los nombres dependen solo del id de subida que genera el celular, así que si la misma
  * foto llega dos veces (reintento por corte de conexión) se pisa a sí misma y no se duplica.
  */
-const { put, head, list, del } = require('@vercel/blob');
+const { put, head, list, del, BlobNotFoundError } = require('@vercel/blob');
 const crypto = require('crypto');
 
 const ESTADOS = ['publicada', 'pendiente', 'rechazada'];
@@ -39,6 +39,9 @@ function enviar(res, status, datos) {
 function manejar(fn) {
   return async (req, res) => {
     try {
+      if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
+        throw new ErrorUsuario('Falta conectar el almacenamiento Blob en Vercel (Almacenamiento → Blob → Conectar) y volver a implementar.', 500);
+      }
       enviar(res, 200, { ok: true, ...(await fn(req, res)) });
     } catch (err) {
       if (err instanceof ErrorUsuario) return enviar(res, err.status, { ok: false, error: err.message });
@@ -87,7 +90,10 @@ async function existe(pathname) {
   try {
     return await head(pathname);
   } catch (err) {
-    if (err && (err.name === 'BlobNotFoundError' || /not.?found/i.test(err.message))) return null;
+    // Vercel avisa "The requested blob does not exist" cuando el archivo todavía no está.
+    const noExiste = (BlobNotFoundError && err instanceof BlobNotFoundError) ||
+      (err && (err.name === 'BlobNotFoundError' || /not.?found|does not exist/i.test(err.message)));
+    if (noExiste) return null;
     throw err;
   }
 }
